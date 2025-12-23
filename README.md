@@ -31,7 +31,7 @@ It scans the configuration files stored by the GitHub Copilot plugin under `~/.c
 * Compile and run.
 * _Hint:_ Use a new workspace for running to be able to access all previous Copilot chats.
 
-## Styled Template
+## Styled Template (Alternative)
 
 There is a second template `chat_template_styled.th` in this Gist. It is optimized for dark mode.
 
@@ -45,6 +45,17 @@ If it works for you, will depend on the markdown viewer used (tested with Intell
 * [Thymeleaf Templates](https://www.thymeleaf.org/)
 * [Jackson Databind](https://github.com/FasterXML/jackson-databind)
 * [SLF4J Simple Provider](https://www.slf4j.org/manual.html)
+
+## Gist TOC
+* [README.md](#file-readme-md) (this file)
+* 👉 [pom.xml](#file-pom-xml)
+* 👉 [CopilotChatExport.java](#file-copilotchatexport-java)
+* 👉 [chat_template.th](#file-chat_template-th)
+* [chat_template_styled.th](#file-chat_template_styled-th) (can be alternatively used)
+* [LICENSE.txt](#file-license-txt)
+* [template_styled_example.png](#file-template_styled_example-png) (image for this README.md)
+
+You need at least the three files marked with 👉.
 
 ## Sample Output
 
