@@ -24,3 +24,59 @@ This Java program was created, because the [GitHub Copilot plugin for IntelliJ](
 * Move the file chat_template.th to the subfolder src/main/resources
 * Compile and run with the IDE of your choice.
 * Use a new workspace for running to be able to access all previous Copilot chats.
+
+## Sample Output
+
+> # Java Hello World Program
+> 
+> * **User:** nineninesevenfour
+> * **Start:** 2025-12-22 15:17:45
+> * **End / Last Change:** 2025-12-22 15:18:57
+> 
+> ---
+> 
+> _**Request:**_
+> 
+> * **Mode:** Ask
+> 
+> > Hello
+> 
+> _**Response:**_
+> 
+> * **Model:** Claude Sonnet 4.5
+> 
+> * **References:** 
+>   * [ ~/my-workspaces/workspace1/.gitignore](file:///Users/username/my-workspaces/workspace1/.gitignore)
+> 
+> * **Steps:**
+>   * &#x2705; Collecting context
+>   * &#x2705; Reading git information
+>   * &#x2705; Analyzing problems and errors
+>   * &#x2705; Reading runtime logs
+>   * &#x2705; Generating response
+> 
+> Hello! How can I assist you with your code or any technical questions you might have?
+> 
+> ---
+> 
+> _**Request:**_
+> 
+> > Please give me a hello world Java main
+> 
+> _**Response:**_
+> 
+> Sure, here is a simple "Hello, World!" program in Java:
+> 
+> ```java
+> public class HelloWorld {
+>     public static void main(String[] args) {
+>         System.out.println("Hello, World!");
+>     }
+> }
+> ```
+> 
+> This program defines a class named `HelloWorld`. Inside this class, there is a single method `main`. This method is the entry point for any Java application. The `System.out.println("Hello, World!");` statement is used to print the string "Hello, World!" to the console.
+> 
+> ---
+> 
+> _**End of Chat**_
