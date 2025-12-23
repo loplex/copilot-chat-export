@@ -8,6 +8,8 @@ This Java program was created, because the [GitHub Copilot plugin for IntelliJ](
 
 It scans the configuration files stored by the GitHub Copilot plugin under `~/.config/github-copilot` and tries to extract the contents.
 
+:warning: **Important:** It does not work for workspaces that are open! Every workspace you want to export the chats of, must be closed before!
+
 ## Notes & Disclaimer
 
 * I do not take any warranty for damages caused by using this program. I tested it successfully multiple times, though.
