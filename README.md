@@ -6,7 +6,7 @@ This Java program was created, because the [GitHub Copilot plugin for IntelliJ](
 
 ## How it works
 
-It scans the configuration files stored by the GitHub Copilot plugin under `~/.config/github-copilot` and tries to extract the contents.
+It scans the configuration files stored by the GitHub Copilot plugin under `~/.config/github-copilot` and tries to extract the contents, exporting each chat as a separate markdown file.
 
 :warning: **Important:** It does not work for workspaces that are open! Every workspace you want to export the chats of, must be closed before!
 
