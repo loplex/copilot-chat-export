@@ -38,6 +38,14 @@ There is a second template `chat_template_styled.th` in this Gist. It is optimiz
 To use it, either adapt method `exportChat` in the source code, or exchange it with `chat_template.th`.
 If it works for you, will depend on the markdown viewer used (tested with IntelliJ and VSCode). 
 
+## Dependencies Used
+
+* [Nitrite Database](https://nitrite.dizitart.com/index.html)
+* [H2 Database MVStore](https://www.h2database.com/html/mvstore.html)
+* [Thymeleaf Templates](https://www.thymeleaf.org/)
+* [Jackson Databind](https://github.com/FasterXML/jackson-databind)
+* [SLF4J Simple Provider](https://www.slf4j.org/manual.html)
+
 ## Sample Output
 
 > # Java Hello World Program
