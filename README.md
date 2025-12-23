@@ -1,19 +1,3 @@
-<style>
-  blockquote:not(blockquote > blockquote), img {
-    border-radius: 10px;
-    border: 2px solid gray;
-    box-shadow: 0 0 15px aqua;
-  }
-  img {
-    border-radius: 10px;
-    box-shadow: 0 0 15px aqua;
-  }
-  @media (prefers-color-scheme: light) {
-    blockquote:not(blockquote > blockquote), img {
-      box-shadow: 0 0 15px aquamarine;
-    }
-  }
-</style>
 # Copilot Chat Export (IntelliJ + Mac)
 
 ## Motivation
@@ -112,4 +96,4 @@ If it works for you, will depend on the markdown viewer used (tested with Intell
 
 ## Sample Output with Styled Template
 
-![image](template_styled_example.png) 
+![image](https://gist.githubusercontent.com/nineninesevenfour/9e63ea6cbbf4c307814614ebd8e442e8/raw/7f58f6d1afd9678240c030e517e53772ae33a0b0/template_styled_example.png) 
