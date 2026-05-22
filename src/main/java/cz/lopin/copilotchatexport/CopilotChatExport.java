@@ -1,5 +1,6 @@
 /*
  * Copyright 2025 nineninesevenfour
+ * Copyright 2026 Martin Lopatář (https://github.com/loplex)
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.example;
+package cz.lopin.copilotchatexport;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
