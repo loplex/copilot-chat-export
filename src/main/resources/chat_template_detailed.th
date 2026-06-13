@@ -27,7 +27,14 @@ _**Response:**_
     [# th:each="line : ${rawBlockquoteLines.apply(t.content)}"]
     > [(${line})]
     [/][/]
-[/][/]
+[/][/][# th:if="${!turn.workingSet.isEmpty()}"]
+* **Edited files:** [# th:each="f : ${turn.workingSet}"]
+  * 📝 [(${workingSetEntry.apply(f)})]
+[/][/][# th:if="${turn.errorMessage != null}"]
+* **⚠️ Error:** [(${turn.errorMessage})]
+[/][# th:if="${turn.rating != null}"]
+* **Rating:** [# th:if="${turn.rating > 0}"]👍[/][# th:if="${turn.rating < 0}"]👎[/][# th:if="${turn.rating == 0}"]±0[/]
+[/]
 [(${turn.response})]
 
 ---

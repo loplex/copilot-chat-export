@@ -126,6 +126,29 @@
     margin-top: 0.4em;
     margin-bottom: 0.4em;
   }
+  .edited-files {
+    background-color: #1e2a1e;
+    border: 1px solid #2a5c2a;
+    border-radius: 10px;
+    margin-left: 10%;
+    margin-bottom: 0.6rem;
+    padding: 6px 14px;
+    font-size: 0.9em;
+  }
+  .error-box {
+    background-color: #2a1a1a;
+    border: 1px solid #8b2222;
+    border-radius: 10px;
+    margin-left: 10%;
+    margin-bottom: 0.6rem;
+    padding: 6px 14px;
+    color: #e06060;
+  }
+  .rating-badge {
+    margin-left: 10%;
+    margin-bottom: 0.4rem;
+    font-size: 1.2em;
+  }
 </style>
 <section class="chat-meta">
 
@@ -149,9 +172,12 @@
 * **References:** [# th:each="reference : ${turn.references}"]
   * [ [(${reference.name})] ]([(${reference.uri})])
 [/][/][# th:if="${!turn.steps.isEmpty()}"]
-* **Steps:** [# th:each="step : ${turn.steps}"]
-  * [(${stepStatusToSymbol.apply(step.status)})] [(${step.title})][# th:if="${step.errorMessage != null}"]<br /><span style="color: red">[(${step.errorMessage})]</span>[/]
-[/][/]</section>
+
+**Steps:**
+[# th:each="step : ${turn.steps}"]
+* [(${stepStatusToSymbol.apply(step.status)})] [(${step.title})][# th:if="${step.errorMessage != null}"] — <span style="color:#e06060">[(${step.errorMessage})]</span>[/]
+[/]
+[/]
 [# th:if="${!turn.thinking.isEmpty()}"]
 [# th:each="t : ${turn.thinking}"]
 <details class="thinking-step">
@@ -164,8 +190,28 @@
 </details>
 [/]
 [/]
+[# th:if="${!turn.workingSet.isEmpty()}"]
+<div class="edited-files">
+
+📝 **Edited files:**[# th:each="f : ${turn.workingSet}"]
+* [(${workingSetEntry.apply(f)})]
+[/]
+</div>
+[/]
+[# th:if="${turn.errorMessage != null}"]
+<div class="error-box">
+
+⚠️ **Error:** [(${turn.errorMessage})]
+
+</div>
+[/]
+[# th:if="${turn.rating != null}"]
+<div class="rating-badge">[# th:if="${turn.rating > 0}"]👍[/][# th:if="${turn.rating < 0}"]👎[/][# th:if="${turn.rating == 0}"]±0[/]</div>
+[/]
 
 [(${turn.response})]
+
+</section>
 
 ---
 

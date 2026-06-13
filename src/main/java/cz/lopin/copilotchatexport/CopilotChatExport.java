@@ -39,6 +39,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -50,6 +51,7 @@ public class CopilotChatExport {
     private static final Path OUTPUT_DIR_BASIC = Paths.get(".", "chat-export", "basic");
     private static final Path OUTPUT_DIR_DETAILED = Paths.get(".", "chat-export", "detailed");
     private static final Path OUTPUT_DIR_STYLED = Paths.get(".", "chat-export", "styled");
+    private static final Path OUTPUT_DIR_ASSETS = Paths.get(".", "chat-export", "_assets");
 
     private static final String TEMPLATE_NAME_BASIC = "chat_template_basic.th";
     private static final String TEMPLATE_NAME_DETAILED = "chat_template_detailed.th";
@@ -88,7 +90,10 @@ public class CopilotChatExport {
             List<Reference> references,
             boolean referencesChanged,
             List<Step> steps,
-            List<ThinkingStep> thinking
+            List<ThinkingStep> thinking,
+            List<WorkingSetFile> workingSet,
+            String errorMessage,
+            Integer rating
     ) {}
 
     record Reference(String name, String uri) {}
@@ -96,6 +101,8 @@ public class CopilotChatExport {
     record Step(String title, String status, String errorMessage) {}
 
     record ThinkingStep(String title, String content) {}
+
+    record WorkingSetFile(String displayPath, String uri, String newContent, String originalContent) {}
 
     private static String USER_HOME;
     private static String USER_HOME_FILE_URL;
@@ -114,6 +121,7 @@ public class CopilotChatExport {
         Files.createDirectories(OUTPUT_DIR_BASIC);
         Files.createDirectories(OUTPUT_DIR_DETAILED);
         Files.createDirectories(OUTPUT_DIR_STYLED);
+        Files.createDirectories(OUTPUT_DIR_ASSETS);
         final int[] sessions = {0, 0};
         Files.walkFileTree(copilotConfig, new SimpleFileVisitor<>() {
             @Override
@@ -137,14 +145,55 @@ public class CopilotChatExport {
         for (Chat chat : chats) {
             if (!chat.turns.isEmpty()) {
                 Path fileName = createFileName(chat);
+                String baseName = fileName.toString().replace(".md", "");
 
-                String markdownChatBasic = exportChat(chat, TEMPLATE_NAME_BASIC);
+                // Collect all unique edited files (by URI, latest version wins)
+                Map<String, WorkingSetFile> allEditedFiles = new LinkedHashMap<>();
+                for (Turn turn : chat.turns) {
+                    for (WorkingSetFile wsf : turn.workingSet) {
+                        if (!wsf.newContent().isEmpty()) {
+                            allEditedFiles.put(wsf.uri(), wsf);
+                        }
+                    }
+                }
+
+                // Write edited file contents to the shared _assets folder and build link map
+                Map<String, String> localLinksByUri = new LinkedHashMap<>();
+                if (!allEditedFiles.isEmpty()) {
+                    Path assetsSubfolder = OUTPUT_DIR_ASSETS.resolve(baseName);
+                    Files.createDirectories(assetsSubfolder);
+
+                    Map<String, Integer> filenameCounters = new LinkedHashMap<>();
+                    for (WorkingSetFile wsf : allEditedFiles.values()) {
+                        // Extract filename from URI
+                        String rawName = wsf.uri().replaceFirst(".*[/\\\\]", "");
+                        int count = filenameCounters.merge(rawName, 0, Integer::sum);
+                        filenameCounters.put(rawName, count + 1);
+                        String outputName = count == 0 ? rawName
+                                : rawName.replaceFirst("(\\.[^.]+)$", "_" + count + "$1");
+
+                        // Write the new (post-edit) version
+                        Files.writeString(assetsSubfolder.resolve(outputName), wsf.newContent());
+
+                        // Write the original (pre-edit) version if it differs
+                        String orig = wsf.originalContent();
+                        if (!orig.isEmpty() && !orig.equals(wsf.newContent())) {
+                            String origName = outputName.replaceFirst("(\\.[^.]+)$", ".orig$1");
+                            Files.writeString(assetsSubfolder.resolve(origName), orig);
+                        }
+
+                        // Both basic/ and styled/ share the same relative path: ../../_assets/...
+                        localLinksByUri.put(wsf.uri(), "../_assets/" + baseName + "/" + outputName);
+                    }
+                }
+
+                String markdownChatBasic = exportChat(chat, TEMPLATE_NAME_BASIC, localLinksByUri);
                 Files.writeString(OUTPUT_DIR_BASIC.resolve(fileName), markdownChatBasic);
 
-                String markdownChatDetailed = exportChat(chat, TEMPLATE_NAME_DETAILED);
+                String markdownChatDetailed = exportChat(chat, TEMPLATE_NAME_DETAILED, localLinksByUri);
                 Files.writeString(OUTPUT_DIR_DETAILED.resolve(fileName), markdownChatDetailed);
 
-                String markdownChatStyled = exportChat(chat, TEMPLATE_NAME_STYLED);
+                String markdownChatStyled = exportChat(chat, TEMPLATE_NAME_STYLED, localLinksByUri);
                 Files.writeString(OUTPUT_DIR_STYLED.resolve(fileName), markdownChatStyled);
             } else {
                 LOGGER.info("No turns found for chat with title \"{}\", skipping it.", chat.name);
@@ -231,7 +280,7 @@ public class CopilotChatExport {
             previousReferences = references;
             Turn markedTurn = new Turn(turn.sessionId, turn.createdAt, turn.chatMode, chatModeChanged,
                     turn.modelName, modelChanged, turn.request, turn.response, turn.references, referencesChanged,
-                    turn.steps, turn.thinking);
+                    turn.steps, turn.thinking, turn.workingSet, turn.errorMessage, turn.rating);
             markedTurns.add(markedTurn);
         }
         return markedTurns;
@@ -249,6 +298,7 @@ public class CopilotChatExport {
                 Date createdAt = new Date(document.get("createdAt", Long.class));
                 String chatMode = document.get("request.chatMode", String.class);
                 String modelName = document.get("response.modelInformation.modelName", String.class);
+                Integer rating = document.get("rating", Integer.class);
                 String requestString = document.get("request.stringContent", String.class);
                 String requestContent = document.get("request.contents", String.class);
                 Optional<JsonNode> requestJson = parseJson(requestContent);
@@ -260,8 +310,15 @@ public class CopilotChatExport {
                 var references = responseJson.map(CopilotChatExport::getReferences).orElseGet(List::of);
                 var steps = responseJson.map(CopilotChatExport::getSteps).orElseGet(List::of);
                 var thinking = responseJson.map(CopilotChatExport::getThinking).orElseGet(List::of);
+                // WorkingSet can appear in both request and response JSON
+                var workingSetFromResponse = responseJson.map(CopilotChatExport::getWorkingSet).orElseGet(List::of);
+                var workingSetFromRequest = requestJson.map(CopilotChatExport::getWorkingSet).orElseGet(List::of);
+                var workingSet = Stream.concat(workingSetFromResponse.stream(), workingSetFromRequest.stream())
+                        .distinct().toList();
+                var errorMessage = responseJson.flatMap(CopilotChatExport::getErrorMessage).orElse(null);
                 Turn chatTurn = new Turn(sessionId, createdAt, chatMode, false,
-                        modelName, false, request, response, references, false, steps, thinking);
+                        modelName, false, request, response, references, false, steps, thinking,
+                        workingSet, errorMessage, rating);
                 result.add(chatTurn);
             }
         }
@@ -326,6 +383,53 @@ public class CopilotChatExport {
                 })
                 .filter(ts -> !ts.title().isEmpty() || !ts.content().isEmpty())
                 .toList();
+    }
+
+    private static List<WorkingSetFile> getWorkingSet(JsonNode jsonNode) {
+        return collectByType(jsonNode, "WorkingSet")
+                .filter(n -> n.has("data") && n.get("data").isArray())
+                .flatMap(n -> n.get("data").valueStream())
+                .filter(item -> item.has("file") && item.has("newContent"))
+                .map(item -> {
+                    String fileUri = item.get("file").asText();
+                    String newContent = item.get("newContent").asText();
+                    String originalContent = item.has("originalContent") ? item.get("originalContent").asText() : "";
+                    return new WorkingSetFile(fileUri.replaceFirst(USER_HOME_FILE_URL, "~"), fileUri, newContent, originalContent);
+                })
+                .distinct()
+                .toList();
+    }
+
+    private static Optional<String> getErrorMessage(JsonNode jsonNode) {
+        return collectByType(jsonNode, "Error")
+                .filter(n -> n.has("data") && n.get("data").isObject())
+                .map(n -> {
+                    JsonNode data = n.get("data");
+                    if (data.has("message")) {
+                        String msg = data.get("message").asText();
+                        if (data.has("model") && !data.get("model").asText().isEmpty()) {
+                            msg += " (model: " + data.get("model").asText() + ")";
+                        }
+                        return msg;
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .findFirst();
+    }
+
+    /** Recursively finds all nodes anywhere in the JSON tree that have {@code "type": targetType}. */
+    private static Stream<JsonNode> collectByType(JsonNode node, String targetType) {
+        if (node == null) return Stream.empty();
+        if (node.isObject()) {
+            if (node.has("type") && targetType.equals(node.get("type").asText())) {
+                return Stream.of(node);
+            }
+            return node.valueStream().flatMap(child -> collectByType(child, targetType));
+        } else if (node.isArray()) {
+            return node.valueStream().flatMap(child -> collectByType(child, targetType));
+        }
+        return Stream.empty();
     }
 
     private static Stream<Map.Entry<String, JsonNode>> getSubgraphData(JsonNode jsonNode) {
@@ -452,12 +556,24 @@ public class CopilotChatExport {
         return engine;
     }
 
-    private static String exportChat(Chat chat, String templateName) {
+    private static String exportChat(Chat chat, String templateName, Map<String, String> localLinksByUri) {
         var context = new Context();
         context.setVariable("chat", chat);
         context.setVariable("escapedMarkdownLines", escapedMarkdownLines());
         context.setVariable("rawBlockquoteLines", rawBlockquoteLines());
         context.setVariable("stepStatusToSymbol", stepStatusToSymbol());
+        // Returns a Markdown-formatted link if a local file exists, or just a code span otherwise.
+        // Appends a link to the original version when it differs.
+        context.setVariable("workingSetEntry", (Function<WorkingSetFile, String>) wsf -> {
+            String link = localLinksByUri.get(wsf.uri());
+            String display = wsf.displayPath();
+            if (link == null) return "`" + display + "`";
+            boolean hasOrig = !wsf.originalContent().isEmpty() && !wsf.originalContent().equals(wsf.newContent());
+            String origLink = hasOrig ? link.replaceFirst("(\\.[^./]+)$", ".orig$1") : null;
+            String result = "[`" + display + "`](" + link + ")";
+            if (origLink != null) result += " ([orig](" + origLink + "))";
+            return result;
+        });
         return templateEngine.process(templateName, context);
     }
 
