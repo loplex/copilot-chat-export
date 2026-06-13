@@ -47,6 +47,13 @@ import java.util.stream.Stream;
 
 public class CopilotChatExport {
 
+    private static final Path OUTPUT_DIR_BASIC = Paths.get(".", "chat-export", "basic");
+    private static final Path OUTPUT_DIR_STYLED = Paths.get(".", "chat-export", "styled");
+
+    private static final String TEMPLATE_NAME_BASIC = "chat_template.th";
+    private static final String TEMPLATE_NAME_STYLED = "chat_template_styled.th";
+
+
     private static final Logger LOGGER = org.slf4j.LoggerFactory.getLogger(CopilotChatExport.class);
 
     private static final Pattern ESCAPE_PATTERN = Pattern.compile("`[^`]*`|([\\\\*_{}\\[\\]()#+-.!|<>$])");
@@ -99,8 +106,8 @@ public class CopilotChatExport {
             return;
         }
         templateEngine = createTemplateEngine();
-        final Path outputFolder = Paths.get(".", "chat-export");
-        Files.createDirectories(outputFolder);
+        Files.createDirectories(OUTPUT_DIR_BASIC);
+        Files.createDirectories(OUTPUT_DIR_STYLED);
         final int[] sessions = {0, 0};
         Files.walkFileTree(copilotConfig, new SimpleFileVisitor<>() {
             @Override
@@ -109,7 +116,7 @@ public class CopilotChatExport {
                     String logFilePath = file.toAbsolutePath().toString().replaceFirst(USER_HOME, "~");
                     LOGGER.info("Database file found: {}", logFilePath);
                     sessions[0]++;
-                    sessions[1] += exportAgentSessions(outputFolder, file);
+                    sessions[1] += exportAgentSessions(file);
                 }
                 return FileVisitResult.CONTINUE;
             }
@@ -117,15 +124,19 @@ public class CopilotChatExport {
         LOGGER.info("Sessions found: {}, skipped: {}", sessions[0], sessions[1]);
     }
 
-    private static int exportAgentSessions(Path outputFolder, Path dbPath) throws IOException {
+    private static int exportAgentSessions(Path dbPath) throws IOException {
         String dbPathAbsolute = dbPath.toAbsolutePath().toString();
         List<Chat> chats = readAgentSessions(dbPathAbsolute);
         int skipped = 0;
         for (Chat chat : chats) {
             if (!chat.turns.isEmpty()) {
-                String markdownChat = exportChat(chat);
-                Path fileName = createFileName(outputFolder, chat);
-                Files.writeString(fileName, markdownChat);
+                Path fileName = createFileName(chat);
+
+                String markdownChatBasic = exportChat(chat, TEMPLATE_NAME_BASIC);
+                Files.writeString(OUTPUT_DIR_BASIC.resolve(fileName), markdownChatBasic);
+
+                String markdownChatStyled = exportChat(chat, TEMPLATE_NAME_STYLED);
+                Files.writeString(OUTPUT_DIR_STYLED.resolve(fileName), markdownChatStyled);
             } else {
                 LOGGER.info("No turns found for chat with title \"{}\", skipping it.", chat.name);
                 skipped++;
@@ -134,7 +145,7 @@ public class CopilotChatExport {
         return skipped;
     }
 
-    private static Path createFileName(Path outputFolder, Chat chat) {
+    private static Path createFileName(Chat chat) {
         String chatNameCleared1 = NON_ALPHABETIC_OR_NUMERIC.matcher(chat.name).replaceAll("_");
         String chatNameCleared2 = LEADING_TRAILING_UNDERSCORES.matcher(chatNameCleared1).replaceAll("");
         String filename = FILENAME_DATE.format(chat.createdAt) + "_" + chatNameCleared2;
@@ -142,7 +153,7 @@ public class CopilotChatExport {
         if (number > 0) {
             filename += "_" + number;
         }
-        return outputFolder.resolve(filename + ".md");
+        return Path.of(filename + ".md");
     }
 
     private static List<Chat> readAgentSessions(String path) {
@@ -419,12 +430,12 @@ public class CopilotChatExport {
         return engine;
     }
 
-    private static String exportChat(Chat chat) {
+    private static String exportChat(Chat chat, String templateName) {
         var context = new Context();
         context.setVariable("chat", chat);
         context.setVariable("escapedMarkdownLines", escapedMarkdownLines());
         context.setVariable("stepStatusToSymbol", stepStatusToSymbol());
-        return templateEngine.process("chat_template.th", context);
+        return templateEngine.process(templateName, context);
     }
 
     private static Function<String, List<String>> escapedMarkdownLines() {
