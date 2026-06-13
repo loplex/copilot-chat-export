@@ -1,0 +1,35 @@
+# [(${chat.name})]
+
+* **User:** [(${chat.user})]
+* **Start:** [(${#dates.format(chat.createdAt, 'yyyy-MM-dd HH:mm:ss')})]
+* **End / Last Change:** [(${#dates.format(chat.modifiedAt, 'yyyy-MM-dd HH:mm:ss')})]
+
+---
+[# th:each="turn : ${chat.turns}"]
+_**Request:**_
+[# th:if="${turn.chatModeChanged}"]
+* **Mode:** [(${turn.chatMode})]
+[/][# th:each="line : ${escapedMarkdownLines.apply(turn.request)}"]
+> [(${line})]
+[/]
+_**Response:**_
+[# th:if="${turn.modelChanged}"]
+* **Model:** [(${turn.modelName})]
+[/][# th:if="${turn.referencesChanged && !turn.references.isEmpty()}"]
+* **References:** [# th:each="reference : ${turn.references}"]
+  * [ [(${reference.name})] ]([(${reference.uri})])
+[/][/][# th:if="${!turn.steps.isEmpty()}"]
+* **Steps:** [# th:each="step : ${turn.steps}"]
+  * [(${stepStatusToSymbol.apply(step.status)})] [(${step.title})][# th:if="${step.errorMessage != null}"]<br /><span style="color: red">[(${step.errorMessage})]</span>[/]
+[/][/][# th:if="${!turn.thinking.isEmpty()}"]
+* **Thinking:** [# th:each="t : ${turn.thinking}"]
+  * 🧠 **[(${t.title})]**[# th:if="${!t.content.isEmpty()}"]
+    [# th:each="line : ${rawBlockquoteLines.apply(t.content)}"]
+    > [(${line})]
+    [/][/]
+[/][/]
+[(${turn.response})]
+
+---
+
+[/]_**End of Chat**_

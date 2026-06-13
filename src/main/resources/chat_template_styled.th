@@ -90,6 +90,42 @@
     font-family: "MonaspaceArgon", monospace;
     filter: brightness(1.1);
   }
+  details.thinking-step {
+    background-color: #1a1d2e;
+    border: 1px solid #2a3060;
+    border-radius: 10px;
+    margin-left: 10%;
+    margin-bottom: 0.6rem;
+    padding: 6px 14px 2px 14px;
+  }
+  details.thinking-step > summary {
+    cursor: pointer;
+    color: #7bafc1;
+    font-style: italic;
+    padding: 4px 0;
+    list-style: none;
+  }
+  details.thinking-step > summary::before {
+    content: "▶ ";
+    font-style: normal;
+    font-size: 0.75em;
+  }
+  details.thinking-step[open] > summary::before {
+    content: "▼ ";
+  }
+  details.thinking-step > summary:hover {
+    color: #4eb3c1;
+  }
+  details.thinking-step > div {
+    padding: 6px 4px 6px 4px;
+    opacity: 0.85;
+    border-top: 1px solid #2a3060;
+    margin-top: 4px;
+  }
+  details.thinking-step > div > p {
+    margin-top: 0.4em;
+    margin-bottom: 0.4em;
+  }
 </style>
 <section class="chat-meta">
 
@@ -116,6 +152,18 @@
 * **Steps:** [# th:each="step : ${turn.steps}"]
   * [(${stepStatusToSymbol.apply(step.status)})] [(${step.title})][# th:if="${step.errorMessage != null}"]<br /><span style="color: red">[(${step.errorMessage})]</span>[/]
 [/][/]</section>
+[# th:if="${!turn.thinking.isEmpty()}"]
+[# th:each="t : ${turn.thinking}"]
+<details class="thinking-step">
+<summary>🧠 <strong>[(${t.title})]</strong></summary>
+[# th:if="${!t.content.isEmpty()}"]
+
+[(${t.content})]
+
+[/]
+</details>
+[/]
+[/]
 
 [(${turn.response})]
 

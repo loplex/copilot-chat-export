@@ -48,9 +48,11 @@ import java.util.stream.Stream;
 public class CopilotChatExport {
 
     private static final Path OUTPUT_DIR_BASIC = Paths.get(".", "chat-export", "basic");
+    private static final Path OUTPUT_DIR_DETAILED = Paths.get(".", "chat-export", "detailed");
     private static final Path OUTPUT_DIR_STYLED = Paths.get(".", "chat-export", "styled");
 
-    private static final String TEMPLATE_NAME_BASIC = "chat_template.th";
+    private static final String TEMPLATE_NAME_BASIC = "chat_template_basic.th";
+    private static final String TEMPLATE_NAME_DETAILED = "chat_template_detailed.th";
     private static final String TEMPLATE_NAME_STYLED = "chat_template_styled.th";
 
 
@@ -85,12 +87,15 @@ public class CopilotChatExport {
             String response,
             List<Reference> references,
             boolean referencesChanged,
-            List<Step> steps
+            List<Step> steps,
+            List<ThinkingStep> thinking
     ) {}
 
     record Reference(String name, String uri) {}
 
     record Step(String title, String status, String errorMessage) {}
+
+    record ThinkingStep(String title, String content) {}
 
     private static String USER_HOME;
     private static String USER_HOME_FILE_URL;
@@ -107,6 +112,7 @@ public class CopilotChatExport {
         }
         templateEngine = createTemplateEngine();
         Files.createDirectories(OUTPUT_DIR_BASIC);
+        Files.createDirectories(OUTPUT_DIR_DETAILED);
         Files.createDirectories(OUTPUT_DIR_STYLED);
         final int[] sessions = {0, 0};
         Files.walkFileTree(copilotConfig, new SimpleFileVisitor<>() {
@@ -134,6 +140,9 @@ public class CopilotChatExport {
 
                 String markdownChatBasic = exportChat(chat, TEMPLATE_NAME_BASIC);
                 Files.writeString(OUTPUT_DIR_BASIC.resolve(fileName), markdownChatBasic);
+
+                String markdownChatDetailed = exportChat(chat, TEMPLATE_NAME_DETAILED);
+                Files.writeString(OUTPUT_DIR_DETAILED.resolve(fileName), markdownChatDetailed);
 
                 String markdownChatStyled = exportChat(chat, TEMPLATE_NAME_STYLED);
                 Files.writeString(OUTPUT_DIR_STYLED.resolve(fileName), markdownChatStyled);
@@ -199,8 +208,7 @@ public class CopilotChatExport {
                     chatTurns = markTurnsOfSession(processTurns(nestedTurns));
                 } else {
                     chatTurns = turnsBySessionId.getOrDefault(chatId, List.of());
-                }
-                Chat chat = new Chat(chatId, name, user, createdAt, modifiedAt, chatTurns);
+                }                Chat chat = new Chat(chatId, name, user, createdAt, modifiedAt, chatTurns);
                 chats.add(chat);
             }
         }
@@ -223,7 +231,7 @@ public class CopilotChatExport {
             previousReferences = references;
             Turn markedTurn = new Turn(turn.sessionId, turn.createdAt, turn.chatMode, chatModeChanged,
                     turn.modelName, modelChanged, turn.request, turn.response, turn.references, referencesChanged,
-                    turn.steps);
+                    turn.steps, turn.thinking);
             markedTurns.add(markedTurn);
         }
         return markedTurns;
@@ -251,8 +259,9 @@ public class CopilotChatExport {
                 String response = responseJson.map(jsonNode -> oneOrTheOther(responseString, jsonNode)).orElse(responseString);
                 var references = responseJson.map(CopilotChatExport::getReferences).orElseGet(List::of);
                 var steps = responseJson.map(CopilotChatExport::getSteps).orElseGet(List::of);
+                var thinking = responseJson.map(CopilotChatExport::getThinking).orElseGet(List::of);
                 Turn chatTurn = new Turn(sessionId, createdAt, chatMode, false,
-                        modelName, false, request, response, references, false, steps);
+                        modelName, false, request, response, references, false, steps, thinking);
                 result.add(chatTurn);
             }
         }
@@ -303,6 +312,19 @@ public class CopilotChatExport {
                     }
                     return new Step(node.get("title").asText(), node.get("status").asText(), errorMessage);
                 })
+                .toList();
+    }
+
+    private static List<ThinkingStep> getThinking(JsonNode jsonNode) {
+        return getSubgraphData(jsonNode)
+                .filter(entry -> "Thinking".equals(entry.getKey()))
+                .map(entry -> {
+                    JsonNode data = entry.getValue();
+                    String title = data.has("title") ? data.get("title").asText() : "";
+                    String content = data.has("content") ? data.get("content").asText() : "";
+                    return new ThinkingStep(title, content);
+                })
+                .filter(ts -> !ts.title().isEmpty() || !ts.content().isEmpty())
                 .toList();
     }
 
@@ -434,6 +456,7 @@ public class CopilotChatExport {
         var context = new Context();
         context.setVariable("chat", chat);
         context.setVariable("escapedMarkdownLines", escapedMarkdownLines());
+        context.setVariable("rawBlockquoteLines", rawBlockquoteLines());
         context.setVariable("stepStatusToSymbol", stepStatusToSymbol());
         return templateEngine.process(templateName, context);
     }
@@ -488,6 +511,13 @@ public class CopilotChatExport {
             case "completed" -> "&#x2705;";
             case "failed" -> "&#x274C;";
             default -> "<" + stepStatus + ">";
+        };
+    }
+
+    private static Function<String, List<String>> rawBlockquoteLines() {
+        return text -> {
+            if (text == null || text.isEmpty()) return List.of();
+            return Arrays.asList(text.split("\n", -1));
         };
     }
 }
